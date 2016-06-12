@@ -5,6 +5,7 @@
 #include <wchar.h>
 #include <iconv.h>
 #include <errno.h>
+#include <math.h>
 
 namespace {
 util::ascii_table kIntUnit {
@@ -38,6 +39,31 @@ std::string wchar2str(const wchar_t* wstr, ::size_t wlen) {
 } // namespace
 
 namespace util {
+
+namespace xx {
+bool pattern_match(const char* p, const char* e) {
+    if (*p == '*' && *(p + 1) == '\0') return true;
+
+    for (; *p != '\0' && *e != '\0';) {
+        char c = *p;
+
+        if (c == '*') {
+            return pattern_match(p + 1, e) || pattern_match(p, e + 1);
+        }
+
+        if (c != '?' && c != *e) return false;
+        ++p;
+        ++e;
+    }
+
+    return (*p == '*' && *(p + 1) == '\0') || (*p == '\0' && *e == '\0');
+}
+}
+
+bool pattern_match(const std::string& pattern, const std::string& expression) {
+    return xx::pattern_match(pattern.c_str(), expression.c_str());
+}
+
 /*
  * As C++ 11 support move semantics, it's ok to return vector.
  */
@@ -126,7 +152,8 @@ bool to_double(const std::string& v, double* r, std::string& err) {
     char* end = NULL;
     double x = ::strtod(v.c_str(), &end);
 
-    if (errno == ERANGE) {
+    if (errno == ERANGE && (x == HUGE_VAL || x == -HUGE_VAL)) {
+        errno = 0;
         err = std::string("out of range for double") + ": " + v;
         return false;
     }

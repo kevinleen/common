@@ -151,4 +151,11 @@ template<typename T> inline void STLEraseFront(T*t, uint32 size) {
   *t = tmp;
 }
 
+template<typename S, typename D>
+inline void STLAppend(const S& s, D* d) {
+  for (auto it = s.begin(); it != s.end(); ++it) {
+    d->insert(d->end(), *it);
+  }
+}
+
 bool execCmd(const std::string& cmd, std::string* out);

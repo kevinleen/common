@@ -56,3 +56,13 @@ class Random {
     }
 };
 
+// n: uniform
+inline const std::string RandomString(uint32 len) {
+  std::string str(len, '0');
+  Random random(::time (NULL));
+  for (auto i = 0; i < len; ++i) {
+    str.append(1, static_cast<char>(random.Uniform(255)));
+  }
+  return str;
+}
+

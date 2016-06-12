@@ -27,7 +27,7 @@ bool Stat(const std::string& path, struct stat* st) {
 bool openFile(const std::string& fpath, int* fd, int flag, int mode) {
   int ret = ::open(fpath.c_str(), flag, mode);
   if (ret == kInvalidFd) {
-    WLOG<< "open error, path: " << fpath;
+    WLOG<< "open error, path: " << fpath << ", ret: " << strerror(errno);
     return false;
   }
 

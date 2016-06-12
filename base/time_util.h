@@ -143,24 +143,29 @@ class timer {
 
 class auto_timer {
   public:
-    auto_timer(const std::string& msg = std::string(), uint32 ms = 50)
-        : _msg(msg), _ms(ms) {
+    auto_timer(const std::string& msg = std::string(), uint32 ms = 50,
+               const char* tag = "timeout")
+        : _msg(msg), _tag(tag), _ms(ms) {
     }
 
     ~auto_timer() {
       auto ms = _timer.ms();
-      TLOG_IF("auto_timer", ms > _ms) << _msg << " timedout: " << _ms;
+      TLOG_IF(_tag, ms > _ms) << _msg << " timedout: " << ms;
     }
 
   private:
     sys::timer _timer;
     std::string _msg;
+    const char* _tag;
     uint32 _ms;
 };
 
-#define AUTO_TIMER(_name_, _msg_, _ms_) \
-    sys::auto_timer _name_( \
-        std::string(__FILE__) + ":" + util::to_string(__LINE__) + "> " + _msg_, _ms_)
+#define FILE_LINE_FUNC \
+    sys::split_path(__FILE__).second + ":" + util::to_string(__LINE__) + \
+        " " + __FUNCTION__
+
+#define AUTO_TIMER(_msg_, _ms_, _tag_) \
+    sys::auto_timer timer_______(FILE_LINE_FUNC + "] " + _msg_, _ms_, _tag_)
 
 }  // namespace sys
 

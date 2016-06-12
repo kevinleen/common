@@ -96,10 +96,10 @@ extern xx::klog klog;
  *   CHECK(1 + 1 == 3) << "1 + 1 != 3";   // check failed!
  *   CHECK_EQ(1 + 1, 2) << "1 + 1 != 2";  // ok
  */
-#define LOG ::cclog::xx::NonFatalLogSaver(__FILE__, __LINE__, INFO).sb()
-#define WLOG ::cclog::xx::NonFatalLogSaver(__FILE__, __LINE__, WARNING).sb()
-#define ELOG ::cclog::xx::NonFatalLogSaver(__FILE__, __LINE__, ERROR).sb()
-#define FLOG ::cclog::xx::FatalLogSaver(__FILE__, __LINE__, FATAL).sb() \
+#define LOG ::cclog::xx::NonFatalLogSaver(__FILE__, __LINE__, 0).sb()
+#define WLOG ::cclog::xx::NonFatalLogSaver(__FILE__, __LINE__, 1).sb()
+#define ELOG ::cclog::xx::NonFatalLogSaver(__FILE__, __LINE__, 2).sb()
+#define FLOG ::cclog::xx::FatalLogSaver(__FILE__, __LINE__, 3).sb() \
                  << "fatal error! "
 
 /*
@@ -112,17 +112,17 @@ extern xx::klog klog;
 
 #define CHECK(cond) \
     if (!(cond)) \
-        ::cclog::xx::FatalLogSaver(__FILE__, __LINE__, FATAL).sb() \
+        ::cclog::xx::FatalLogSaver(__FILE__, __LINE__, 3).sb() \
             << "check failed: " #cond "! "
 
 #define CHECK_NOTNULL(ptr) \
     if (ptr == NULL) \
-        ::cclog::xx::FatalLogSaver(__FILE__, __LINE__, FATAL).sb() \
+        ::cclog::xx::FatalLogSaver(__FILE__, __LINE__, 3).sb() \
             << "check failed: " #ptr " mustn't be NULL! "
 
 #define CHECK_OP(a, b, op) \
     for (auto _x_ = std::make_pair(a, b); !(_x_.first op _x_.second);) \
-        ::cclog::xx::FatalLogSaver(__FILE__, __LINE__, FATAL).sb() \
+        ::cclog::xx::FatalLogSaver(__FILE__, __LINE__, 3).sb() \
             << "check failed: " #a " " #op " " #b ", " \
             << _x_.first << " vs " << _x_.second
 
@@ -254,11 +254,6 @@ class CerrSaver {
 
     DISALLOW_COPY_AND_ASSIGN(CerrSaver);
 };
-
-#define INFO 0
-#define WARNING 1
-#define ERROR 2
-#define FATAL 3
 
 class LevelLogSaver {
   public:

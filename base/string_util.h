@@ -9,6 +9,12 @@
 #include <map>
 
 namespace util {
+
+/*
+ * '*' for any string, '?' for single letter
+ */
+bool pattern_match(const std::string& pattern, const std::string& expression);
+
 /*
  * split string @s by character @c
  *

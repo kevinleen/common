@@ -1,4 +1,6 @@
 #include "cctest.h"
+#include "../time_util.h"
+#include "../string_util.h"
 
 DEF_uint32(timeout, -1, "timeout in ms for test cases");
 DEF_bool(a, false, "run all tests if true");
@@ -41,7 +43,10 @@ void TestRunner::run_test(Test* test) {
     _test.reset(test);
     _ev.reset();
 
-    CERR << "begin " << test->name() << " test >>>";
+    set_lightblue();
+    CERR << ">>> begin " << test->name() << " test";
+    reset_color();
+
     _thread.reset(new Thread(std::bind(&TestRunner::thread_fun, this)));
     _thread->start();
 
@@ -49,13 +54,17 @@ void TestRunner::run_test(Test* test) {
     std::pair<std::string, uint32> res;
 
     if (!_ev.timed_wait(FLG_timeout)) {
-        CERR <<"end " << test->name() << " test] "
-             << "timeout: " << t.ms() << "ms\n";
+        set_lightblue();
+        CERR << "<<< " << test->name() << " test timeout: " << t.ms() << "ms\n";
+        reset_color();
+
         _thread->cancel();
 
     } else {
-        CERR <<"end " << test->name() << " test] "
-             << "ok: " << t.ms() << "ms\n";
+        set_lightblue();
+        CERR << "<<< " << test->name() << " test done: " << t.ms() << "ms\n";
+        reset_color();
+
         _thread->join();
     }
 }

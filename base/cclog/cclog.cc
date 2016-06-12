@@ -18,7 +18,7 @@ DEF_bool(klog_off, false, "if true, turn off KLOG");
 
 DEF_string(log_dir, "/tmp", "log dir");
 DEF_string(log_prefix, "", "prefix of log file name");
-DEF_string(ip, "", "ip for klog");
+DEF_string(kip, "", "ip for klog");
 DEF_int64(max_log_file_size, 1 << 30, "max log file size, default: 1G");
 
 namespace cclog {
@@ -41,7 +41,7 @@ class Logger {
 
     static void set_log_prefix(const std::string& log_prefix) {
         _log_prefix = log_prefix;
-        if (!_log_prefix.empty() && _log_prefix.back() != '.') {
+        if (!_log_prefix.empty() && *_log_prefix.rbegin() != '.') {
             _log_prefix.push_back('.');
         }
     }
@@ -208,6 +208,13 @@ void TaggedLogger::flush_log_files() {
         file.close();
     }
 }
+
+enum LogLevel {
+    INFO = 0,
+    WARNING = 1,
+    ERROR = 2,
+    FATAL = 3,
+};
 
 class LevelLogger : public Logger {
   public:
@@ -456,7 +463,7 @@ class KLogger : public Logger {
 };
 
 void KLogger::log_to_file(const std::string& time, KLog* log) {
-    std::string msg = FLG_ip + "&" + time + "&" + log->sb().to_string();
+    std::string msg = FLG_kip + "&" + time + "&" + log->sb().to_string();
     _log_cb(log->topic(), msg.data(), msg.size());
 }
 
