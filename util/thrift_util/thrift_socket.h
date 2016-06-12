@@ -117,10 +117,19 @@ class ThriftClient : public ThreadSafeHandlerWrapper<T> {
 
     ThriftClient(const std::string& ip, uint32 port, uint32 ms)
         : ThreadSafeHandlerWrapper<T>(
-            new util::ThriftClientDelegate<T>(ip, port, ms)) {
+            new util::ThriftClientDelegate<T>(ip, port, ms)),
+          _ip(ip), _port(port) {
     }
 
     virtual ~ThriftClient() = default;
+
+    std::pair<std::string, uint32> ip_port() {
+        return std::pair<std::string, uint32>(_ip, _port);
+    }
+
+  private:
+    std::string _ip;
+    uint32 _port;
 };
 
 template<typename T>

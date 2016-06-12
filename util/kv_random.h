@@ -2,7 +2,6 @@
 
 #include "base/base.h"
 
-
 namespace util {
 template <typename Key>
 class KvRandom {
