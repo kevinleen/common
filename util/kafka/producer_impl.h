@@ -9,11 +9,10 @@ class Producer;
 }
 
 namespace util {
+class KafkaTopic;
 
 class KafkaEventClosure;
 class KafkaDevelelyClosure;
-
-class KafkaTopic;
 class KafkaProducerImpl : public KafkaProducer {
   public:
     KafkaProducerImpl();
@@ -33,7 +32,6 @@ class KafkaProducerImpl : public KafkaProducer {
     std::unique_ptr<Thread> _poll_thread;
     std::unique_ptr<RdKafka::Producer> _producer;
 
-    friend class KafkaTopic;
     void dumpConf(const std::list<std::string>& conf_list);
     virtual void produce(const char* topic_name, const char* data, uint32 len);
 

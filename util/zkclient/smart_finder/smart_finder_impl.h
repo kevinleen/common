@@ -23,7 +23,7 @@ class SmartFinderImpl : public SmartFinder {
     std::unique_ptr<ZkClient> _zk_client;
     std::shared_ptr<FinderAction> _action;
 
-    virtual bool init();
+    virtual bool init(const std::string& zk_server);
     virtual bool query(std::vector<ServerEntry> *server_list);
 
     bool _watched;

@@ -56,7 +56,7 @@ void serializeAsString(const Message& msg, std::string* value) {
 template<typename M>
 const std::string serializeAsString(const M& msg) {
   std::string value;
-  serializeAsString(msg, value);
+  serializeAsString(msg, &value);
   return value;
 }
 

@@ -83,8 +83,18 @@ void KafkaProducerImpl::poll() {
 
 void KafkaProducerImpl::produce(const char* topic_name, const char* data,
                                 uint32 len) {
-  LOG<< "topic: " << topic_name << " data: " << data;
-  findOrCreateTopic(topic_name)->produce(data, len);
+  auto topic = findOrCreateTopic(topic_name);
+  if (_producer != NULL) {
+    LOG<< "topic: " << topic->topicName() << " data: " << data;
+    auto ret = _producer->produce(topic->getTopic(), RdKafka::Topic::PARTITION_UA,
+        RdKafka::Producer::RK_MSG_COPY,
+        const_cast<char *>(data), len,
+        NULL,
+        NULL);
+    if (ret != RdKafka::ERR_NO_ERROR) {
+      ELOG<<"kafka produce error: " << RdKafka::err2str(ret);
+    }
+  }
 }
 
 std::shared_ptr<KafkaTopic> KafkaProducerImpl::findOrCreateTopic(
@@ -95,7 +105,10 @@ std::shared_ptr<KafkaTopic> KafkaProducerImpl::findOrCreateTopic(
     if (it != _topics.end()) return it->second;
   }
 
-  std::shared_ptr<KafkaTopic> topic(new KafkaTopic(topic_name, this));
+  std::shared_ptr<KafkaTopic> topic;
+  topic.reset(
+      new KafkaTopic(std::string((char*) topic_name, strlen(topic_name)),
+                     _producer.get()));
   if (!topic->init()) {
     ELOG<< "topic initialized error, name: " << topic_name;
     return std::shared_ptr<KafkaTopic>();

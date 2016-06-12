@@ -5,27 +5,31 @@
 namespace RdKafka {
 class Topic;
 class Producer;
+
+class Handle;
 }
 
 namespace util {
 
-class KafkaProducerImpl;
 class KafkaTopic {
   public:
-    KafkaTopic(const char* topic, KafkaProducerImpl* producer);
+    KafkaTopic(const std::string& topic, RdKafka::Handle* handler);
     ~KafkaTopic();
 
     bool init();
 
-    void produce(const char* data, uint32 len);
-    const char* topicName() const {
+    RdKafka::Topic* getTopic() const {
+      return _topic.get();
+    }
+
+    const std::string& topicName() const {
       return _topic_name;
     }
 
   private:
-    const char* _topic_name;
+    RdKafka::Handle* _handler;
+    const std::string _topic_name;
 
-    KafkaProducerImpl* _producer;
     std::unique_ptr<RdKafka::Topic> _topic;
     void dumpConfig(const std::list<std::string>& conf_list) const;
 

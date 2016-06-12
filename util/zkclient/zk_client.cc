@@ -1,6 +1,9 @@
 #include "zk_client.h"
 #include "zk_action.h"
 
+DEF_string(zk_server, "127.0.0.1:3000,127.0.0.1:3001", "zk's address");
+DEF_uint32(zk_timedout, 1, "zk's timedout, second");
+
 namespace {
 
 void watchHandler(zhandle_t *zh, int type, int state, const char *path,
@@ -34,29 +37,34 @@ ZkClient::~ZkClient() {
   }
 }
 
-bool ZkClient::init(const std::string& server, int timeout) {
+bool ZkClient::init(const std::string& zk_server) {
   cclog::log_by_day("zk_debug");
   cclog::log_by_day("zk_error");
 
-  assert(!server.empty() && timeout >= 1);
+  auto zk_ip = zk_server;
+  if (zk_server.empty()) {
+    zk_ip = FLG_zk_server;
+  }
+
+  assert(!zk_ip.empty() && FLG_zk_timedout >= 1);
   _action->init(this);
   {
     MutexGuard l(_mutex);
-    _server = server;
-    _timeout = timeout;
+    _server = zk_ip;
+    _timeout = FLG_zk_timedout;
 
     clientid_t cid;
     ::memset(&cid, 0x00, sizeof(cid));
-    _zh_handle = ::zookeeper_init(server.data(), watchHandler, timeout * 1000,
-                                  &cid, this, 0);
+    _zh_handle = ::zookeeper_init(zk_ip.data(), watchHandler,
+                                  FLG_zk_timedout * 1000, &cid, this, 0);
     if (_zh_handle == NULL) {
-      TLOG("error")<< "can't connect zkServer: " << server;
+      TLOG("error")<< "can't connect zkServer: " << zk_ip;
       return false;
     }
   }
 
-  if (!_event.timed_wait(timeout * 1000)) {
-    TLOG("zk_error")<< "zk timedout" << server;
+  if (!_event.timed_wait(FLG_zk_timedout * 1000)) {
+    TLOG("zk_error")<< "zk timedout" << zk_ip;
   }
 
   MutexGuard l(_mutex);
@@ -104,20 +112,25 @@ void ZkClient::handleEvent(int type, int state, const std::string& path) {
   }
 }
 
-bool ZkClient::create(const std::string& path, const std::string& value) {
+bool ZkClient::create(const std::string& path, const std::string& value,
+                      bool permanent) {
   MutexGuard l(_mutex);
   if (!_connected) {
     TLOG("zk_error")<< "zk not connected";
     return false;
   }
 
+  uint32 flag = permanent ? 0 : ZOO_EPHEMERAL;
   ACL_vector acl = { 0 };
   int ret = ::zoo_create(_zh_handle, path.data(), value.data(), value.size(),
-                         &ZOO_OPEN_ACL_UNSAFE, ZOO_EPHEMERAL, NULL, 0);
+                         &ZOO_OPEN_ACL_UNSAFE, flag,
+                         NULL,
+                         0);
   switch (ret) {
     case ZOK:
-    case ZNODEEXISTS:
       return true;
+    case ZNODEEXISTS:
+      return false;
     case ZNONODE:
     case ZNOAUTH:
     case ZNOCHILDRENFOREPHEMERALS:

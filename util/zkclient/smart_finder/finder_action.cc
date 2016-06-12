@@ -1,6 +1,8 @@
 #include "finder_action.h"
 #include "smart_finder_impl.h"
 
+DEF_uint32(smart_interval, 30, "interval for smart finer, second");
+
 namespace util {
 
 bool FinderAction::init(ZkClient* zk_client) {
@@ -10,7 +12,7 @@ bool FinderAction::init(ZkClient* zk_client) {
 }
 
 void FinderAction::doCheck() {
-  if (_timer.sec() < 3) return;
+  if (_timer.sec() < FLG_smart_interval) return;
 
   _impl->onCheck();
 }

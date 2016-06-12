@@ -17,6 +17,16 @@ struct RedisReply {
         return _reply != NULL;
     }
 
+    int type() const {
+        return _reply->type;
+    }
+
+    std::string to_string() const {
+        return std::string(_reply->str, _reply->len);
+    }
+
+    std::vector<std::string> cluster_slots() const;
+
     bool is_error() const {
         return this->type() == REDIS_REPLY_ERROR;
     }
@@ -29,18 +39,77 @@ struct RedisReply {
         return this->type() == REDIS_REPLY_NIL;
     }
 
-    std::string value() const {
-        return std::string(_reply->str, _reply->len);
+    bool is_array() const {
+        return this->type() == REDIS_REPLY_ARRAY;
     }
 
-    int type() const {
-        return _reply->type;
+    bool is_integer() const {
+        return this->type() == REDIS_REPLY_INTEGER;
     }
+
+    void reset(redisReply* reply = NULL) {
+        _reply = reply;
+    }
+
+  public:
+    static const int str = REDIS_REPLY_STRING;
+    static const int array = REDIS_REPLY_ARRAY;
+    static const int integer = REDIS_REPLY_INTEGER;
+    static const int nil = REDIS_REPLY_NIL;
+    static const int status = REDIS_REPLY_STATUS;
+    static const int error = REDIS_REPLY_ERROR;
 
   private:
     redisReply* _reply;
 };
 
+std::vector<std::string> RedisReply::cluster_slots() const {
+    std::vector<std::string> vs;
+
+    for (size_t i = 0; i < _reply->elements; ++i) {
+        std::string s;
+
+        auto reply = _reply->element[i];
+
+        if (reply->type == REDIS_REPLY_ARRAY && reply->elements > 2) {
+            const auto& e = reply->element;
+            if (e[0]->type != REDIS_REPLY_INTEGER ||
+                e[1]->type != REDIS_REPLY_INTEGER) {
+                goto err;
+            }
+
+            s += util::to_string(e[0]->integer) + "~" +
+                 util::to_string(e[1]->integer) + " ";
+
+            for (auto k = 2; k < reply->elements; ++k) {
+                if (e[k]->type != REDIS_REPLY_ARRAY) goto err;
+                if (e[k]->elements != 2) goto err;
+
+                const auto& ee = e[k]->element;
+
+                if (ee[0]->type != REDIS_REPLY_STRING ||
+                    ee[1]->type != REDIS_REPLY_INTEGER) {
+                    goto err;
+                }
+
+                if (k != 2) s += ",";
+                s += std::string(ee[0]->str, ee[0]->len);
+                s += ":" + util::to_string(ee[1]->integer);
+            }
+
+        } else {
+            goto err;
+        }
+
+        vs.push_back(s);
+    }
+
+    return vs;
+
+    err:
+    TLOG("redis") << "redis cluster slots error";
+    return std::vector<std::string>();
+}
 }
 
 namespace util {
@@ -69,7 +138,10 @@ bool Redis::connect() {
 
 bool Redis::get(const std::string& key, std::string* value,
                 std::string* err) {
-    if (_ctx == NULL && !this->connect()) return false;
+    if (_ctx == NULL && !this->connect()) {
+        if (err != NULL) *err = "connect error";
+        return false;
+    }
 
     value->clear();
 
@@ -77,15 +149,17 @@ bool Redis::get(const std::string& key, std::string* value,
 
     if (reply.ok()) {
         if (reply.is_string()) {
-            *value = reply.value();
+            *value = reply.to_string();
             return true;
         }
 
         if (reply.is_nil()) return false;
 
         if (reply.is_error()) {
-            if (err != NULL) *err = reply.value();
-            TLOG("redis") << "redis get error: " << reply.value();
+            if (err != NULL) *err = reply.to_string();
+            TLOG("redis") << "redis get error: " << reply.to_string();
+        } else {
+            if (err != NULL) *err = "unknown reply type";
         }
 
         return false;
@@ -94,21 +168,25 @@ bool Redis::get(const std::string& key, std::string* value,
     TLOG("redis") << "redis get error, key: " << key << ", err: "
         << this->on_error(_ctx->err);
 
+    if (err != NULL) *err = "connect error";
     return false;
 }
 
 bool Redis::set(const std::string& key, const std::string& value,
                 std::string* err) {
-    if (_ctx == NULL && !this->connect()) return false;
+    if (_ctx == NULL && !this->connect()) {
+        if (err != NULL) *err = "connect error";
+        return false;
+    }
 
     RedisReply reply = run_cmd(_ctx, "SET %b %b", key.data(), key.size(),
                                value.data(), value.size());
 
     if (reply.ok()) {
         if (reply.is_error()) {
-            if (err != NULL) *err = reply.value();
+            if (err != NULL) *err = reply.to_string();
 
-            TLOG("redis") << "redis set error: " << reply.value();
+            TLOG("redis") << "redis set error: " << reply.to_string();
             return false;
         }
 
@@ -118,12 +196,16 @@ bool Redis::set(const std::string& key, const std::string& value,
     TLOG("redis") << "redis set error, key: " << key << ", err: "
         << this->on_error(_ctx->err);
 
+    if (err != NULL) *err = "connect error";
     return false;
 }
 
 bool Redis::set(const std::string& key, const std::string& value,
                 int32 expired, std::string* err) {
-    if (_ctx == NULL && !this->connect()) return false;
+    if (_ctx == NULL && !this->connect()) {
+        if (err != NULL) *err = "connect error";
+        return false;
+    }
 
     if (expired < 0) return this->set(key, value, err);
 
@@ -132,9 +214,9 @@ bool Redis::set(const std::string& key, const std::string& value,
 
     if (reply.ok()) {
         if (reply.is_error()) {
-            if (err != NULL) *err = reply.value();
+            if (err != NULL) *err = reply.to_string();
 
-            TLOG("redis") << "redis set REPLY_ERROR: " << reply.value();
+            TLOG("redis") << "redis set REPLY_ERROR: " << reply.to_string();
             return false;
         }
 
@@ -143,23 +225,30 @@ bool Redis::set(const std::string& key, const std::string& value,
 
     TLOG("redis") << "redis set error, key: " << key << ", err: "
         << this->on_error(_ctx->err);
+
+    if (err != NULL) *err = "connect error";
     return false;
 }
 
 bool Redis::del(const std::string& key, std::string* err) {
-    if (_ctx == NULL && !connect()) return false;
+    if (_ctx == NULL && !connect()) {
+        if (err != NULL) *err = "connect error";
+        return false;
+    }
 
     RedisReply reply = run_cmd(_ctx, "DEL %b", key.data(), key.size());
 
     if (!reply.ok()) {
         TLOG("redis") << "redis del error, key: " << key << ", "
             << this->on_error(_ctx->err);
+
+        if (err != NULL) *err = "unknow error";
         return false;
     }
 
     if (reply.is_error()) {
-        if (err != NULL) *err = reply.value();
-        TLOG("redis") << "redis del error: " << reply.value();
+        if (err != NULL) *err = reply.to_string();
+        TLOG("redis") << "redis del error: " << reply.to_string();
         return false;
     }
 
@@ -172,8 +261,34 @@ std::string Redis::cluster_nodes() {
     RedisReply reply = run_cmd(_ctx, "CLUSTER NODES");
     if (!reply.ok()) return std::string();
 
-    CHECK(reply.is_string());
-    return reply.value();
+    if (reply.is_string()) {
+        return reply.to_string();
+    }
+
+    if (reply.is_error()) {
+        TLOG("redis") << "CLUSTER NODES error: " << reply.to_string();
+        return reply.to_string();
+
+    } else if (reply.is_nil()) {
+        TLOG("redis") << "CLUSTER NODES nil reply";
+    }
+
+    return std::string();
+}
+
+std::string Redis::cluster_slots() {
+    if (_ctx == NULL && !connect()) return std::string();
+
+    RedisReply reply = run_cmd(_ctx, "CLUSTER SLOTS");
+    if (!reply.ok()) return std::string();
+
+    if (!reply.is_array()) {
+        TLOG("redis") << "cluster slots error, result type not array: "
+            << reply.type();
+        return std::string();
+    }
+
+    return util::to_string(reply.cluster_slots());
 }
 
 const std::string& Redis::on_error(int err) {

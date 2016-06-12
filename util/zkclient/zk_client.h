@@ -9,10 +9,7 @@ class ZkClient {
     explicit ZkClient(std::shared_ptr<ZkAction> action);
     virtual ~ZkClient();
 
-    // timeout: second.
-    // eparated host:port pairs, each corresponding to a zk
-    // server. e.g. "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002"
-    bool init(const std::string& server, int timeout);
+    bool init(const std::string& zk_server = "");
 
     void markDown() {
       MutexGuard l(_mutex);
@@ -24,7 +21,11 @@ class ZkClient {
     }
 
     bool remove(const std::string& path);
-    bool create(const std::string& path, const std::string& value);
+    bool create(const std::string& path, const std::string& value,
+                bool permanent = false);
+    bool create(const std::string& path, bool permanent) {
+      return create(path, "", permanent);
+    }
 
     bool exist(const std::string& path);
     bool watchDir(const std::string& path);

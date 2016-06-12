@@ -10,7 +10,7 @@ class SmartFinder {
   public:
     virtual ~SmartFinder() = default;
 
-    virtual bool init() = 0;
+    virtual bool init(const std::string& zk_server = "") = 0;
 
     virtual bool query(std::vector<ServerEntry> *server_list) = 0;
 

@@ -10,6 +10,7 @@ class DB {
     virtual ~DB() = default;
 
     virtual bool del(const std::string& key) = 0;
+
     virtual bool get(const std::string &key, std::string *value) = 0;
     virtual bool set(const std::string& key, const std::string& value,
                      int32 expired = -1) = 0;
@@ -24,7 +25,6 @@ class DB {
     DB() = default;
 
   private:
-
     DISALLOW_COPY_AND_ASSIGN(DB);
 };
 

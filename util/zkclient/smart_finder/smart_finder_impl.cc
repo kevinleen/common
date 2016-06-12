@@ -2,8 +2,6 @@
 #include "smart_finder_impl.h"
 #include "../zk_client.h"
 
-DEF_string(zk_server, "127.0.0.1:3000,127.0.0.1:3001", "zk's address");
-
 namespace util {
 
 SmartFinderImpl::SmartFinderImpl(const std::string& server,
@@ -18,18 +16,17 @@ SmartFinderImpl::SmartFinderImpl(const std::string& server,
 
 SmartFinderImpl::~SmartFinderImpl() = default;
 
-bool SmartFinderImpl::init() {
+bool SmartFinderImpl::init(const std::string& zk_server) {
   _action.reset(new FinderAction(this));
   _zk_client.reset(new ZkClient(_action));
 
-  CHECK(!FLG_zk_server.empty());
-  if (!_zk_client->init(FLG_zk_server, 3 /*second*/)) {
-    ELOG<< "init zk error, path: " << FLG_zk_server;
+  if (!_zk_client->init(zk_server)) {
+    ELOG<< "init zk error ";
     return false;
   }
 
   if (!_action->init(_zk_client.get())) {
-    ELOG<< "finder action initialized error";
+    DLOG("zk_error") << "finder action initialized error";
     return false;
   }
 
@@ -60,7 +57,7 @@ bool SmartFinderImpl::onCheck() {
   std::set<std::string> nodes;
   std::vector<ServerEntry> server_list;
   if (!queryFromZk(&nodes, &server_list)) {
-    ELOG<< "query form zk error, server: " << _server;
+    DLOG("zk_error") << "query form zk error, server: " << _server;
     return false;
   }
 
@@ -143,7 +140,7 @@ bool SmartFinderImpl::watchDir(const std::string& full_path) {
 
   if (watched) return true;
   if (!_zk_client->exist(_path)) {
-    ELOG<< "zk node not exist, path: " << _path;
+    DLOG("zk_error") << "zk node not exist, path: " << _path;
     return false;
   }
 
@@ -160,13 +157,13 @@ bool SmartFinderImpl::watchDir(const std::string& full_path) {
 bool SmartFinderImpl::parseEntry(const std::string& node, ServerEntry* entry) {
   std::string data, full_path(_path + "/" + node);
   if (!_zk_client->read(full_path, &data)) {
-    ELOG<< "zk read error, path: " << full_path;
+    DLOG("zk_error") << "zk read error, path: " << full_path;
     return false;
   }
 
   auto ip_ports = util::split_string(data, ":");
   if (ip_ports.size() != 2) {
-    ELOG<< "parse entry error, data: " << data;
+    DLOG("zk_error") << "parse entry error, data: " << data;
     return false;
   }
 
@@ -174,7 +171,7 @@ bool SmartFinderImpl::parseEntry(const std::string& node, ServerEntry* entry) {
   auto port = util::to_uint32(ip_ports[1]);
   entry->first = ip;
   entry->second = port;
-  WLOG<< "server: " << _server << ", ip: " << ip << ", port: " << port;
+//  WLOG<< "server: " << _server << ", ip: " << ip << ", port: " << port;
 
   return true;
 }
@@ -183,7 +180,7 @@ bool SmartFinderImpl::queryFromZk(std::set<std::string>* nodes,
                                   std::vector<ServerEntry> *server_list) {
   std::vector<std::string> dirs;
   if (!_zk_client->listDir(_path, &dirs)) {
-    ELOG<< "zk list error, path: " << _path;
+    DLOG("zk_error") << "zk list error, path: " << _path;
     return false;
   }
 

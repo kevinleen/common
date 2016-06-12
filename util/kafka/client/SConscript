@@ -25,7 +25,6 @@ source_files = glob('../base/*.cc') + \
 			   glob('../base/hash/*.cc') + \
          glob('../util/*.cc') + \
          glob('../util/kafka/*.cc') + \
-         glob('../util/kafka/client/*.cc') + \
          ['../rpc/socket_util.cc']
 
 source_files += [
@@ -53,4 +52,5 @@ for s in source_files:
 	print(os.path.realpath(s))
 print('')
 
-env.Program('kafkaClient', source_files)
+env.Program('kafkaProducer', source_files + ['../util/kafka/client/producer_main.cc',])
+env.Program('kafkaConsumer', source_files + ['../util/kafka/client/consumer_main.cc',])
