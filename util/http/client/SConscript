@@ -1,0 +1,53 @@
+import os, sys, time
+from glob import glob
+
+env = Environment()
+ccflags = ['-std=c++0x', ]
+if ARGUMENTS.get('release', '0') == '0':
+  ccflags += ['-O2', '-g3', '-Werror', ]
+else:
+  ccflags += ['-O2', '-g0', '-Wall', ]
+env.Append(CPPFLAGS = ccflags)
+env.Append(CPPPATH = ['../', '/usr/local/include', '/usr/local/include/hiredis/',
+  '../../third', '/usr/local/thrift-0.9.2/include', ])
+
+ccdefines = {'_FILE_OFFSET_BITS':'64',  
+	'DEBUG' : 1, }
+env.Append(CPPDEFINES=ccdefines)
+
+env.Append(LIBPATH = ['../../lib', '/usr/local/lib'])
+libs = ['dl', 'rt', 'ssl', 'event_openssl']
+env.Append(LIBS=libs, LINKFLAGS=['-pthread'])
+
+source_files = glob('../base/*.cc') + \
+			   glob('../base/cclog/*.cc') + \
+			   glob('../base/ccflag/*.cc') + \
+			   glob('../base/hash/*.cc') + \
+         glob('../util/http/*.cc') + \
+         glob('../util/http/client/*.cc') + \
+         ['../rpc/socket_util.cc']
+
+source_files += ['/usr/local/thrift-0.9.2/lib/libthriftnb.a', 
+    '/usr/local/thrift-0.9.2/lib/libthrift.a',
+    '/usr/local/lib/libhiredis.a',
+    '/usr/local/lib/libevhtp.a',
+    '/usr/local/lib/libevent.a',
+    '/usr/local/lib/libcityhash.a',
+    '/usr/local/lib/libprotobuf.a',
+    '/usr/local/lib/liblzo2.a',
+    '/usr/local/lib/libcurl.a',
+    '/usr/local/lib/libunwind.a',
+    '/usr/local/lib/libtcmalloc.a',
+    '/usr/local/lib/libjsoncpp.a',
+    '/usr/local/lib/libboost_thread.a',
+    '/usr/local/lib/libboost_system.a',
+    '/usr/local/lib/libboost_date_time.a',
+    '/usr/local/lib/libzookeeper_mt.a',
+	]
+
+print("souce code list: >>")
+for s in source_files:
+	print(os.path.realpath(s))
+print('')
+
+env.Program('http', source_files)
